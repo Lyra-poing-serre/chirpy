@@ -6,9 +6,22 @@ import (
 )
 
 func main() {
+	const (
+		serverRoot = "."
+		serverPort = ":8080"
+	)
+	mux := http.NewServeMux()
+	apiConf := apiConfig{}
+
+	fileHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(serverRoot)))
+	mux.Handle("/app/", apiConf.middlewareMetricsInc(fileHandler))
+	mux.HandleFunc("/healthz", readinessHandler)
+	mux.HandleFunc("/metrics", apiConf.metricsHandler)
+	mux.HandleFunc("/reset", apiConf.resetHandler)
+
 	server := http.Server{
-		Addr:    ":8080",
-		Handler: http.NewServeMux(),
+		Addr:    serverPort,
+		Handler: mux,
 	}
 
 	err := server.ListenAndServe()
