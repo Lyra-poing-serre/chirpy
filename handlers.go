@@ -20,12 +20,12 @@ func (a *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(h)
 }
 
-func plainTextHandler(data string) http.Handler {
+func plainTextHandler(contentType string, data string) http.Handler {
 	if data == "" {
 		log.Fatalln("Empty data to write")
 	}
 	f := func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", contentType) // "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 
 		io.WriteString(w, data)
@@ -34,17 +34,23 @@ func plainTextHandler(data string) http.Handler {
 }
 
 func readinessHandler(w http.ResponseWriter, req *http.Request) {
-	h := plainTextHandler("OK")
+	h := plainTextHandler("text/plain; charset=utf-8", "OK\n")
 	h.ServeHTTP(w, req)
 }
 
 func (a *apiConfig) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	h := plainTextHandler(fmt.Sprintf("Hits: %d", a.fileserverHits.Load()))
+	fmt.Println(req.Method)
+	h := plainTextHandler("text/html", fmt.Sprintf(`<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited %d times!</p>
+  </body>
+</html>`, a.fileserverHits.Load()))
 	h.ServeHTTP(w, req)
 }
 
 func (a *apiConfig) resetHandler(w http.ResponseWriter, req *http.Request) {
 	a.fileserverHits.Store(0)
-	h := plainTextHandler("Hits are reseted")
+	h := plainTextHandler("text/plain; charset=utf-8", "Hits are reseted\n")
 	h.ServeHTTP(w, req)
 }
