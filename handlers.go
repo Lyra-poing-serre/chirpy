@@ -39,7 +39,6 @@ func readinessHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) metricsHandler(w http.ResponseWriter, req *http.Request) {
-	fmt.Println(req.Method)
 	h := plainTextHandler("text/html", fmt.Sprintf(`<html>
   <body>
     <h1>Welcome, Chirpy Admin</h1>
