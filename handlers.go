@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	config         map[string]string
 }
 
 func (a *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -52,7 +54,11 @@ func (a *apiConfig) metricsHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) resetHandler(w http.ResponseWriter, req *http.Request) {
+	err := a.db.ResetUsers(context.Background())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+	}
 	a.fileserverHits.Store(0)
-	h := plainTextHandler("text/plain; charset=utf-8", "Hits are reseted\n")
+	h := plainTextHandler("text/plain; charset=utf-8", "Hits are reseted\nUsers table is now empty.")
 	h.ServeHTTP(w, req)
 }

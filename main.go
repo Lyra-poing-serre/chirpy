@@ -27,12 +27,13 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	apiConf := apiConfig{db: database.New(db)}
+	apiConf := apiConfig{db: database.New(db), config: myEnv}
 
 	fileHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(serverRoot)))
 	mux.Handle("/app/", apiConf.middlewareMetricsInc(fileHandler))
 
 	mux.HandleFunc("POST /api/validate_chirp", apiConf.validateChirpHandler)
+	mux.HandleFunc("POST /api/users", apiConf.validateUsersHandler)
 
 	mux.HandleFunc("GET /admin/healthz", readinessHandler)
 	mux.HandleFunc("GET /admin/metrics", apiConf.metricsHandler)
