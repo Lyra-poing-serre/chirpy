@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -32,7 +34,15 @@ func jsonResponse(w http.ResponseWriter, statusCode int, payload interface{}) {
 
 func (a *apiConfig) validateChirpHandler(w http.ResponseWriter, req *http.Request) {
 	type reqParameters struct {
-		Body string `json:"body"`
+		Body   string `json:"body"`
+		UserId string `json:"user_id"`
+	}
+	type jsonChirp struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserId    uuid.UUID `json:"user_id"`
 	}
 
 	defer req.Body.Close()
@@ -42,15 +52,44 @@ func (a *apiConfig) validateChirpHandler(w http.ResponseWriter, req *http.Reques
 
 	if err = decoder.Decode(&params); err != nil {
 		jsonResponse(w, http.StatusInternalServerError, err)
+		return
 	} else if len(params.Body) > 140 {
 		jsonResponse(w, http.StatusInternalServerError, errors.New("chirp is too long"))
+		return
 	} else if params.Body == "" {
 		jsonResponse(w, http.StatusBadRequest, errors.New("empty body"))
-	} else {
-		params.Body = cleanChirp(params.Body)
-		jsonResponse(w, 200, params)
+		return
 	}
 
+	uId, err := uuid.Parse(params.UserId)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	_, err = a.db.GetUser(context.Background(), uId)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, fmt.Errorf("%s not found", uId))
+		return
+	}
+
+	chirp, err := a.db.CreateChirp(context.Background(), database.CreateChirpParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Body:      cleanChirp(params.Body),
+		UserID:    uId,
+	})
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	jsonResponse(w, http.StatusCreated, jsonChirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserId:    chirp.UserID,
+	})
 }
 
 func cleanChirp(body string) string {

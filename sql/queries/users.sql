@@ -10,3 +10,9 @@ RETURNING *;
 
 -- name: ResetUsers :exec
 DELETE FROM users;
+
+-- name: GetUser :one
+SELECT *
+FROM users
+WHERE id = $1
+LIMIT 1;
