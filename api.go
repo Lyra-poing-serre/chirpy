@@ -51,27 +51,27 @@ func (a *apiConfig) validateChirpHandler(w http.ResponseWriter, req *http.Reques
 	var err error
 
 	if err = decoder.Decode(&params); err != nil {
-		jsonResponse(w, http.StatusInternalServerError, err)
+		errorResponse(w, http.StatusInternalServerError, err.Error())
 		return
-	} else if len(params.Body) > 140 {
+	}
+
+	uId, err := uuid.Parse(params.UserId)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	_, err = a.db.GetUser(context.Background(), uId)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, fmt.Errorf("%s is unknown", uId))
+		return
+	}
+	if len(params.Body) > 140 {
 		jsonResponse(w, http.StatusInternalServerError, errors.New("chirp is too long"))
 		return
 	} else if params.Body == "" {
 		jsonResponse(w, http.StatusBadRequest, errors.New("empty body"))
 		return
 	}
-
-	uId, err := uuid.Parse(params.UserId)
-	if err != nil {
-		jsonResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-	_, err = a.db.GetUser(context.Background(), uId)
-	if err != nil {
-		jsonResponse(w, http.StatusInternalServerError, fmt.Errorf("%s not found", uId))
-		return
-	}
-
 	chirp, err := a.db.CreateChirp(context.Background(), database.CreateChirpParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -112,7 +112,7 @@ func cleanChirp(body string) string {
 	return strings.Join(text, " ")
 }
 
-func (a *apiConfig) validateUsersHandler(w http.ResponseWriter, req *http.Request) {
+func (a *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 	if a.config["PLATFORM"] != "dev" {
 		errorResponse(w, http.StatusForbidden, "PLATFORM != dev")
 		return
@@ -152,4 +152,31 @@ func (a *apiConfig) validateUsersHandler(w http.ResponseWriter, req *http.Reques
 		UpdatedAt: dbUsr.UpdatedAt,
 		Email:     dbUsr.Email,
 	})
+}
+
+func (a *apiConfig) chirpyHandler(w http.ResponseWriter, req *http.Request) {
+	type jsonChirp struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+	var list []jsonChirp
+
+	chpy, err := a.db.GetChirps(context.Background())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+	}
+
+	for _, chirp := range chpy {
+		list = append(list, jsonChirp{
+			ID:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
+		})
+	}
+	jsonResponse(w, http.StatusOK, list)
 }

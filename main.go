@@ -32,8 +32,9 @@ func main() {
 	fileHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(serverRoot)))
 	mux.Handle("/app/", apiConf.middlewareMetricsInc(fileHandler))
 
+	mux.HandleFunc("GET /api/chirps", apiConf.chirpyHandler)
 	mux.HandleFunc("POST /api/chirps", apiConf.validateChirpHandler)
-	mux.HandleFunc("POST /api/users", apiConf.validateUsersHandler)
+	mux.HandleFunc("POST /api/users", apiConf.usersHandler)
 
 	mux.HandleFunc("GET /admin/healthz", readinessHandler)
 	mux.HandleFunc("GET /admin/metrics", apiConf.metricsHandler)
