@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Lyra-poing-serre/chirpy/internal/auth"
 	"github.com/Lyra-poing-serre/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -118,12 +119,14 @@ func (a *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	type reqParameters struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type jsonUser struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
+		Password  string    `json:"password"`
 		Email     string    `json:"email"`
 	}
 	var data reqParameters
@@ -136,11 +139,17 @@ func (a *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	hash, err := auth.HashPassword(data.Password)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	dbUsr, err := a.db.CreateUser(req.Context(), database.CreateUserParams{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		Email:     data.Email,
+		ID:             uuid.New(),
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		HashedPassword: hash,
+		Email:          data.Email,
 	})
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
@@ -155,6 +164,10 @@ func (a *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *apiConfig) chirpyHandler(w http.ResponseWriter, req *http.Request) {
+	cId := req.PathValue("chirpID")
+	if cId == "" {
+		errorResponse(w, http.StatusNotFound, "Not found")
+	}
 	type jsonChirp struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
@@ -162,21 +175,60 @@ func (a *apiConfig) chirpyHandler(w http.ResponseWriter, req *http.Request) {
 		Body      string    `json:"body"`
 		UserID    uuid.UUID `json:"user_id"`
 	}
-	var list []jsonChirp
-
-	chpy, err := a.db.GetChirps(context.Background())
+	cID, err := uuid.Parse(cId)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	chirp, err := a.db.GetChirps(context.Background(), cID)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusOK, jsonChirp{
+		ID:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	})
+}
+
+func (a *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
+	type reqParameters struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	type jsonUser struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Password  string    `json:"password"`
+		Email     string    `json:"email"`
+	}
+	var request reqParameters
+
+	defer req.Body.Close()
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&request); err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	for _, chirp := range chpy {
-		list = append(list, jsonChirp{
-			ID:        chirp.ID,
-			CreatedAt: chirp.CreatedAt,
-			UpdatedAt: chirp.UpdatedAt,
-			Body:      chirp.Body,
-			UserID:    chirp.UserID,
-		})
+	dbUser, err := a.db.GetUserByEmail(context.Background(), request.Email)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
-	jsonResponse(w, http.StatusOK, list)
+	if auth.CheckPasswordHash(request.Password, dbUser.HashedPassword) != nil {
+		jsonResponse(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, jsonUser{
+		ID:        dbUser.ID,
+		CreatedAt: dbUser.CreatedAt,
+		UpdatedAt: dbUser.UpdatedAt,
+		Email:     dbUser.Email,
+	})
 }

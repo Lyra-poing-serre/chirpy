@@ -12,7 +12,8 @@ RETURNING *;
 -- name: ResetChirps :exec
 DELETE FROM chirps;
 
--- name: GetChirps :many
+-- name: GetChirps :one
 SELECT *
 FROM chirps
-ORDER BY created_at;
+WHERE id = $1
+LIMIT 1;
