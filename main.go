@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Lyra-poing-serre/chirpy/cmd/api"
 	"github.com/Lyra-poing-serre/chirpy/internal/database"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -27,19 +28,19 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	apiConf := apiConfig{db: database.New(db), config: myEnv}
+	apiConf := api.ApiConfig{Db: database.New(db), Config: myEnv}
 
 	fileHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(serverRoot)))
-	mux.Handle("/app/", apiConf.middlewareMetricsInc(fileHandler))
+	mux.Handle("/app/", apiConf.MiddlewareMetricsInc(fileHandler))
 
-	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConf.chirpyHandler)
-	mux.HandleFunc("POST /api/chirps", apiConf.validateChirpHandler)
-	mux.HandleFunc("POST /api/users", apiConf.usersHandler)
-	mux.HandleFunc("POST /api/login", apiConf.loginHandler)
+	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConf.ChirpyHandler)
+	mux.HandleFunc("POST /api/chirps", apiConf.ValidateChirpHandler)
+	mux.HandleFunc("POST /api/users", apiConf.UsersHandler)
+	mux.HandleFunc("POST /api/login", apiConf.LoginHandler)
 
-	mux.HandleFunc("GET /admin/healthz", readinessHandler)
-	mux.HandleFunc("GET /admin/metrics", apiConf.metricsHandler)
-	mux.HandleFunc("POST /admin/reset", apiConf.resetHandler)
+	mux.HandleFunc("GET /admin/healthz", api.ReadinessHandler)
+	mux.HandleFunc("GET /admin/metrics", apiConf.MetricsHandler)
+	mux.HandleFunc("POST /admin/reset", apiConf.ResetHandler)
 
 	server := http.Server{
 		Addr:    serverPort,
