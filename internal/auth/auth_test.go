@@ -15,7 +15,7 @@ func TestHashPassword(t *testing.T) {
 
 	result, err := HashPassword(string(rdm))
 	if err != nil {
-		t.Errorf("got unexpected error with HashPassword: %s", err)
+		t.Error(err)
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(result), rdm) != nil {
@@ -29,7 +29,7 @@ func TestCheckPasswordHash(t *testing.T) {
 
 	expected, err := bcrypt.GenerateFromPassword(rdm, 0)
 	if err != nil {
-		t.Errorf("got unexpected error with bcrypt.GenerateFromPassword: %s", err)
+		t.Error(err)
 	}
 
 	if bcrypt.CompareHashAndPassword(expected, rdm) != CheckPasswordHash(string(rdm), string(expected)) {
@@ -47,9 +47,9 @@ func TestMakeAndValidateJWT(t *testing.T) {
 	}
 	result, err := ValidateJWT(signedToken, string(mockPwd))
 	if err != nil {
-		t.Errorf("got unexpected error with ValidateJWT: %s", err)
+		t.Error(err)
 	}
 	if result != expected {
-		t.Errorf("userId didn't match")
+		t.Error("userId didn't match")
 	}
 }
