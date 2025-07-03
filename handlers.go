@@ -57,6 +57,7 @@ func (a *apiConfig) resetHandler(w http.ResponseWriter, req *http.Request) {
 	err := a.db.ResetUsers(context.Background())
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	a.fileserverHits.Store(0)
 	h := plainTextHandler("text/plain; charset=utf-8", "Hits are reseted\nUsers table is now empty.")

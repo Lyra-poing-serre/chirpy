@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -45,27 +44,26 @@ func (a *apiConfig) validateChirpHandler(w http.ResponseWriter, req *http.Reques
 		Body      string    `json:"body"`
 		UserId    uuid.UUID `json:"user_id"`
 	}
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	retrievedId, err := auth.ValidateJWT(token, a.config["SERVER_SECRET"])
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
 
 	defer req.Body.Close()
 	decoder := json.NewDecoder(req.Body)
 	params := reqParameters{}
-	var err error
 
 	if err = decoder.Decode(&params); err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	uId, err := uuid.Parse(params.UserId)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	_, err = a.db.GetUser(context.Background(), uId)
-	if err != nil {
-		jsonResponse(w, http.StatusInternalServerError, fmt.Errorf("%s is unknown", uId))
-		return
-	}
 	if len(params.Body) > 140 {
 		jsonResponse(w, http.StatusInternalServerError, errors.New("chirp is too long"))
 		return
@@ -78,7 +76,7 @@ func (a *apiConfig) validateChirpHandler(w http.ResponseWriter, req *http.Reques
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Body:      cleanChirp(params.Body),
-		UserID:    uId,
+		UserID:    retrievedId,
 	})
 	if err != nil {
 		jsonResponse(w, http.StatusInternalServerError, err)
@@ -126,7 +124,6 @@ func (a *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
-		Password  string    `json:"password"`
 		Email     string    `json:"email"`
 	}
 	var data reqParameters
@@ -196,15 +193,16 @@ func (a *apiConfig) chirpyHandler(w http.ResponseWriter, req *http.Request) {
 
 func (a *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 	type reqParameters struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password        string `json:"password"`
+		Email           string `json:"email"`
+		ExpireInSeconds int    `json:"expires_in_seconds"`
 	}
 	type jsonUser struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
-		Password  string    `json:"password"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
 	}
 	var request reqParameters
 
@@ -225,10 +223,20 @@ func (a *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	tokenLifeTime := time.Hour
+	if request.ExpireInSeconds > 0 && time.Duration(request.ExpireInSeconds).Seconds() < tokenLifeTime.Seconds() {
+		tokenLifeTime = time.Duration(request.ExpireInSeconds)
+	}
+	token, err := auth.MakeJWT(dbUser.ID, a.config["SERVER_SECRET"], tokenLifeTime)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	jsonResponse(w, http.StatusOK, jsonUser{
 		ID:        dbUser.ID,
 		CreatedAt: dbUser.CreatedAt,
 		UpdatedAt: dbUser.UpdatedAt,
 		Email:     dbUser.Email,
+		Token:     token,
 	})
 }
