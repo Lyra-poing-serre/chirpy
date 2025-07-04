@@ -99,3 +99,35 @@ func (q *Queries) ResetUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, resetUsers)
 	return err
 }
+
+const updateUserPwdEmail = `-- name: UpdateUserPwdEmail :one
+UPDATE users
+SET email = $2, hashed_password = $3, updated_at = $4
+WHERE id = $1
+RETURNING id, created_at, updated_at, hashed_password, email
+`
+
+type UpdateUserPwdEmailParams struct {
+	ID             uuid.UUID
+	Email          string
+	HashedPassword string
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) UpdateUserPwdEmail(ctx context.Context, arg UpdateUserPwdEmailParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPwdEmail,
+		arg.ID,
+		arg.Email,
+		arg.HashedPassword,
+		arg.UpdatedAt,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.HashedPassword,
+		&i.Email,
+	)
+	return i, err
+}

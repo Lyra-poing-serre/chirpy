@@ -7,21 +7,22 @@ import (
 	"time"
 
 	"github.com/Lyra-poing-serre/chirpy/internal/auth"
+	"github.com/Lyra-poing-serre/chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
 func (a *ApiConfig) LoginHandler(w http.ResponseWriter, req *http.Request) {
 	type reqParameters struct {
-		Password        string `json:"password"`
-		Email           string `json:"email"`
-		ExpireInSeconds int    `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 	type jsonUser struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 	var request reqParameters
 
@@ -42,20 +43,30 @@ func (a *ApiConfig) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tokenLifeTime := time.Hour
-	if request.ExpireInSeconds > 0 && time.Duration(request.ExpireInSeconds).Seconds() < tokenLifeTime.Seconds() {
-		tokenLifeTime = time.Duration(request.ExpireInSeconds)
+	accessToken, err := auth.MakeJWT(dbUser.ID, a.Config["SERVER_SECRET"], time.Hour)
+	if err != nil {
+		jsonResponse(w, http.StatusInternalServerError, err.Error())
+		return
 	}
-	token, err := auth.MakeJWT(dbUser.ID, a.Config["SERVER_SECRET"], tokenLifeTime)
+
+	refreshToken, _ := auth.MakeRefreshToken() // error toujours à nil ATM
+	_, err = a.Db.CreateRefreshToken(context.Background(), database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    dbUser.ID,
+		ExpiredAt: time.Now().AddDate(0, 0, 60),
+	})
 	if err != nil {
 		jsonResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	jsonResponse(w, http.StatusOK, jsonUser{
-		ID:        dbUser.ID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
-		Email:     dbUser.Email,
-		Token:     token,
+		ID:           dbUser.ID,
+		CreatedAt:    dbUser.CreatedAt,
+		UpdatedAt:    dbUser.UpdatedAt,
+		Email:        dbUser.Email,
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	})
 }

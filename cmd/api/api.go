@@ -1,11 +1,16 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sync/atomic"
+	"time"
 
+	"github.com/Lyra-poing-serre/chirpy/internal/auth"
 	"github.com/Lyra-poing-serre/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 type ApiConfig struct {
@@ -39,4 +44,19 @@ func jsonResponse(w http.ResponseWriter, statusCode int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(out)
+}
+
+func (a *ApiConfig) verifyRefreshToken(head http.Header) (uuid.UUID, error) {
+	token, err := auth.GetBearerToken(head)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	dbToken, err := a.Db.GetRefreshToken(context.Background(), token)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	if dbToken.ExpiredAt.Before(time.Now()) || dbToken.RevokedAt.Valid {
+		return uuid.UUID{}, errors.New("expired or revoked token")
+	}
+	return dbToken.UserID, nil
 }
