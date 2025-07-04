@@ -35,7 +35,7 @@ func (a *ApiConfig) LoginHandler(w http.ResponseWriter, req *http.Request) {
 
 	dbUser, err := a.Db.GetUserByEmail(context.Background(), request.Email)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	if auth.CheckPasswordHash(request.Password, dbUser.HashedPassword) != nil {

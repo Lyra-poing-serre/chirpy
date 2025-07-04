@@ -34,6 +34,7 @@ func main() {
 	mux.Handle("/app/", apiConf.MiddlewareMetricsInc(fileHandler))
 
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConf.ChirpyHandler)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiConf.RemoveChirpyHandler)
 	mux.HandleFunc("POST /api/chirps", apiConf.ValidateChirpHandler)
 	mux.HandleFunc("/api/users", apiConf.UsersHandler)
 	mux.HandleFunc("POST /api/login", apiConf.LoginHandler)

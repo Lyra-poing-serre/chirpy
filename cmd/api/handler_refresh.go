@@ -13,7 +13,7 @@ func (a *ApiConfig) RefreshHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	uID, err := a.verifyRefreshToken(req.Header)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 	accessToken, err := auth.MakeJWT(uID, a.Config["SERVER_SECRET"], time.Hour*60)

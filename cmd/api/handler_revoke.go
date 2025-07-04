@@ -18,7 +18,7 @@ func (a *ApiConfig) RevokeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	_, err = a.verifyRefreshToken(req.Header)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 	_, err = a.Db.RevokeRefreshToken(context.Background(), database.RevokeRefreshTokenParams{
@@ -29,7 +29,7 @@ func (a *ApiConfig) RevokeHandler(w http.ResponseWriter, req *http.Request) {
 		},
 	})
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	jsonResponse(w, http.StatusNoContent, "")

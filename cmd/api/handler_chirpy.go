@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Lyra-poing-serre/chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -30,10 +31,6 @@ func cleanChirp(body string) string {
 }
 
 func (a *ApiConfig) ChirpyHandler(w http.ResponseWriter, req *http.Request) {
-	cId := req.PathValue("chirpID")
-	if cId == "" {
-		errorResponse(w, http.StatusNotFound, "Not found")
-	}
 	type jsonChirp struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
@@ -41,14 +38,14 @@ func (a *ApiConfig) ChirpyHandler(w http.ResponseWriter, req *http.Request) {
 		Body      string    `json:"body"`
 		UserID    uuid.UUID `json:"user_id"`
 	}
-	cID, err := uuid.Parse(cId)
+	cID, err := uuid.Parse(req.PathValue("chirpID"))
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	chirp, err := a.Db.GetChirps(context.Background(), cID)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
+		errorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
 	jsonResponse(w, http.StatusOK, jsonChirp{
@@ -58,4 +55,38 @@ func (a *ApiConfig) ChirpyHandler(w http.ResponseWriter, req *http.Request) {
 		Body:      chirp.Body,
 		UserID:    chirp.UserID,
 	})
+}
+
+func (a *ApiConfig) RemoveChirpyHandler(w http.ResponseWriter, req *http.Request) {
+	cID, err := uuid.Parse(req.PathValue("chirpID"))
+	if err != nil {
+		errorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	uId, err := auth.ValidateJWT(token, a.Config["SERVER_SECRET"])
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	chirp, err := a.Db.GetChirps(context.Background(), cID)
+	if err != nil {
+		errorResponse(w, http.StatusNotFound, err.Error())
+		return
+	} else if uId != chirp.UserID {
+		errorResponse(w, http.StatusForbidden, "not the current user")
+		return
+	}
+
+	err = a.Db.DeleteChirp(context.Background(), chirp.ID)
+	if err != nil {
+		errorResponse(w, http.StatusNotFound, err.Error())
+		return
+	}
+	jsonResponse(w, http.StatusNoContent, "")
 }
