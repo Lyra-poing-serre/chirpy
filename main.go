@@ -33,6 +33,7 @@ func main() {
 	fileHandler := http.StripPrefix("/app/", http.FileServer(http.Dir(serverRoot)))
 	mux.Handle("/app/", apiConf.MiddlewareMetricsInc(fileHandler))
 
+	mux.HandleFunc("GET /api/chirps", apiConf.ChirpsHandler)
 	mux.HandleFunc("GET /api/chirps/{chirpID}", apiConf.ChirpyHandler)
 	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiConf.RemoveChirpyHandler)
 	mux.HandleFunc("POST /api/chirps", apiConf.ValidateChirpHandler)
