@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/Lyra-poing-serre/chirpy/internal/auth"
 	"github.com/Lyra-poing-serre/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -16,6 +17,12 @@ func (a *ApiConfig) WebhookHandler(w http.ResponseWriter, req *http.Request) {
 			UserId uuid.UUID `json:"user_id"`
 		} `json:"data"`
 	}
+	_, err := auth.GetAPIKey(req.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
 	var request reqParameters
 	defer req.Body.Close()
 	decoder := json.NewDecoder(req.Body)
@@ -27,7 +34,7 @@ func (a *ApiConfig) WebhookHandler(w http.ResponseWriter, req *http.Request) {
 		jsonResponse(w, http.StatusNoContent, "")
 		return
 	}
-	err := a.Db.UpdateRedUser(context.Background(), database.UpdateRedUserParams{
+	err = a.Db.UpdateRedUser(context.Background(), database.UpdateRedUserParams{
 		ID:          request.Data.UserId,
 		IsChirpyRed: true,
 	})
