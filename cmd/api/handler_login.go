@@ -23,6 +23,7 @@ func (a *ApiConfig) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		Email        string    `json:"email"`
 		Token        string    `json:"token"`
 		RefreshToken string    `json:"refresh_token"`
+		IsChirpyRed  bool      `json:"is_chirpy_red"`
 	}
 	var request reqParameters
 
@@ -68,5 +69,6 @@ func (a *ApiConfig) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		Email:        dbUser.Email,
 		Token:        accessToken,
 		RefreshToken: refreshToken,
+		IsChirpyRed:  dbUser.IsChirpyRed,
 	})
 }

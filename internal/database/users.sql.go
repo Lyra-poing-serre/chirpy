@@ -21,7 +21,7 @@ VALUES (
     $4,
     $5
 )
-RETURNING id, created_at, updated_at, hashed_password, email
+RETURNING id, created_at, updated_at, hashed_password, email, is_chirpy_red
 `
 
 type CreateUserParams struct {
@@ -47,12 +47,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.HashedPassword,
 		&i.Email,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, created_at, updated_at, hashed_password, email
+SELECT id, created_at, updated_at, hashed_password, email, is_chirpy_red
 FROM users
 WHERE id = $1
 LIMIT 1
@@ -67,12 +68,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.HashedPassword,
 		&i.Email,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, created_at, updated_at, hashed_password, email
+SELECT id, created_at, updated_at, hashed_password, email, is_chirpy_red
 FROM users
 WHERE email = $1
 LIMIT 1
@@ -87,6 +89,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.HashedPassword,
 		&i.Email,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
@@ -100,11 +103,27 @@ func (q *Queries) ResetUsers(ctx context.Context) error {
 	return err
 }
 
+const updateRedUser = `-- name: UpdateRedUser :exec
+UPDATE users
+SET is_chirpy_red = $2
+WHERE id = $1
+`
+
+type UpdateRedUserParams struct {
+	ID          uuid.UUID
+	IsChirpyRed bool
+}
+
+func (q *Queries) UpdateRedUser(ctx context.Context, arg UpdateRedUserParams) error {
+	_, err := q.db.ExecContext(ctx, updateRedUser, arg.ID, arg.IsChirpyRed)
+	return err
+}
+
 const updateUserPwdEmail = `-- name: UpdateUserPwdEmail :one
 UPDATE users
 SET email = $2, hashed_password = $3, updated_at = $4
 WHERE id = $1
-RETURNING id, created_at, updated_at, hashed_password, email
+RETURNING id, created_at, updated_at, hashed_password, email, is_chirpy_red
 `
 
 type UpdateUserPwdEmailParams struct {
@@ -128,6 +147,7 @@ func (q *Queries) UpdateUserPwdEmail(ctx context.Context, arg UpdateUserPwdEmail
 		&i.UpdatedAt,
 		&i.HashedPassword,
 		&i.Email,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }

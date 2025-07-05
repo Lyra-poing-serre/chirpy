@@ -17,10 +17,11 @@ type reqParameters struct {
 }
 
 type jsonUser struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 
 func (a *ApiConfig) UsersHandler(w http.ResponseWriter, req *http.Request) {
@@ -66,10 +67,11 @@ func (a *ApiConfig) CreateUserHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 	jsonResponse(w, http.StatusCreated, jsonUser{
-		ID:        dbUsr.ID,
-		CreatedAt: dbUsr.CreatedAt,
-		UpdatedAt: dbUsr.UpdatedAt,
-		Email:     dbUsr.Email,
+		ID:          dbUsr.ID,
+		CreatedAt:   dbUsr.CreatedAt,
+		UpdatedAt:   dbUsr.UpdatedAt,
+		Email:       dbUsr.Email,
+		IsChirpyRed: dbUsr.IsChirpyRed,
 	})
 }
 
@@ -110,9 +112,10 @@ func (a *ApiConfig) UpdateUserHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	jsonResponse(w, http.StatusOK, jsonUser{
-		ID:        dbUsr.ID,
-		CreatedAt: dbUsr.CreatedAt,
-		UpdatedAt: dbUsr.UpdatedAt,
-		Email:     dbUsr.Email,
+		ID:          dbUsr.ID,
+		CreatedAt:   dbUsr.CreatedAt,
+		UpdatedAt:   dbUsr.UpdatedAt,
+		Email:       dbUsr.Email,
+		IsChirpyRed: dbUsr.IsChirpyRed,
 	})
 }
